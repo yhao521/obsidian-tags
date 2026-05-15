@@ -1,4 +1,13 @@
-import { App, PluginSettingTab, Setting, Notice, Modal, TFolder, SuggestModal, TAbstractFile } from "obsidian";
+import {
+	App,
+	PluginSettingTab,
+	Setting,
+	Notice,
+	Modal,
+	TFolder,
+	SuggestModal,
+	TAbstractFile,
+} from "obsidian";
 import MyPlugin from "./main";
 
 /**
@@ -8,17 +17,15 @@ class FolderSuggestModal extends SuggestModal<string> {
 	private onChooseCallback: (path: string) => void;
 	private folderList: string[];
 
-	constructor(
-		app: App,
-		onChooseCallback: (path: string) => void,
-	) {
+	constructor(app: App, onChooseCallback: (path: string) => void) {
 		super(app);
 		this.onChooseCallback = onChooseCallback;
 		this.setPlaceholder("搜索或选择文件夹...");
 		this.inputEl.placeholder = "搜索文件夹...";
-		
+
 		// 收集所有文件夹路径
-		this.folderList = this.app.vault.getAllLoadedFiles()
+		this.folderList = this.app.vault
+			.getAllLoadedFiles()
 			.filter((f): f is TFolder => f instanceof TFolder)
 			.map((folder) => (folder.path === "/" ? "" : folder.path));
 	}
@@ -423,6 +430,10 @@ export class SampleSettingTab extends PluginSettingTab {
 				},
 			}) as HTMLInputElement;
 			toggle.checked = rule.enabled;
+			toggle.addEventListener("change", () => {
+				rule.enabled = toggle.checked;
+				void this.plugin.saveSettings();
+			});
 
 			// 删除按钮
 			const deleteBtn = controlsDiv.createEl("button", {
@@ -502,6 +513,10 @@ export class SampleSettingTab extends PluginSettingTab {
 				},
 			}) as HTMLInputElement;
 			caseToggle.checked = rule.caseSensitive;
+			caseToggle.addEventListener("change", () => {
+				rule.caseSensitive = caseToggle.checked;
+				void this.plugin.saveSettings();
+			});
 
 			optionsDiv.createSpan({
 				text: "区分大小写",
