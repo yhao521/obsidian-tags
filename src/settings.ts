@@ -17,6 +17,7 @@ export interface TagRule {
 export interface MyPluginSettings {
 	yamlTemplates: YamlTemplate[];
 	tagRules: TagRule[];
+	targetDirectory: string; // 目标目录路径,为空则处理当前文件
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 			enabled: true,
 		},
 	],
+	targetDirectory: "", // 默认为空,处理当前文件
 };
 
 export class SampleSettingTab extends PluginSettingTab {
@@ -56,6 +58,10 @@ export class SampleSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
+		// 目标目录设置区域
+		new Setting(containerEl).setName("处理设置").setHeading();
+		this.displayTargetDirectory(containerEl);
+
 		// YAML模板设置区域
 		new Setting(containerEl).setName("YAML模板设置").setHeading();
 		this.displayYamlTemplates(containerEl);
@@ -63,6 +69,39 @@ export class SampleSettingTab extends PluginSettingTab {
 		// 标签规则设置区域
 		new Setting(containerEl).setName("标签匹配规则").setHeading();
 		this.displayTagRules(containerEl);
+	}
+
+	/**
+	 * 显示目标目录配置
+	 */
+	displayTargetDirectory(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("目标目录")
+			.setDesc(
+				'指定要批量处理的目录路径(相对于Vault根目录)。留空则只处理当前打开的文件。例如: "00-Inbox" 或 "Notes/Tutorials"',
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("留空则处理当前文件")
+					.setValue(this.plugin.settings.targetDirectory)
+					.onChange(async (value) => {
+						this.plugin.settings.targetDirectory = value.trim();
+						await this.plugin.saveSettings();
+					}),
+			)
+			.addButton((button) =>
+				button.setButtonText("选择").onClick(async () => {
+					// 使用Obsidian的文件选择器
+					const file = await this.app.vault.getAbstractFileByPath(
+						this.plugin.settings.targetDirectory || "/",
+					);
+					if (file) {
+						new Notice(`已选择目录: ${file.path}`);
+					} else {
+						new Notice("目录不存在,请输入正确的路径");
+					}
+				}),
+			);
 	}
 
 	/**
@@ -137,15 +176,23 @@ export class SampleSettingTab extends PluginSettingTab {
 			const contentDiv = templateDiv.createDiv({
 				attr: { style: "margin-top: 10px;" },
 			});
-			contentDiv.createEl("label", { 
-				text: template.isDynamic ? "模板内容(动态生成时会覆盖此内容):" : "模板内容:",
-				attr: { style: template.isDynamic ? "color: var(--text-muted);" : "" }
+			contentDiv.createEl("label", {
+				text: template.isDynamic
+					? "模板内容(动态生成时会覆盖此内容):"
+					: "模板内容:",
+				attr: {
+					style: template.isDynamic
+						? "color: var(--text-muted);"
+						: "",
+				},
 			});
 			const textarea = contentDiv.createEl("textarea", {
 				attr: {
 					rows: "6",
 					style: "width: 100%; margin-top: 5px; font-family: monospace;",
-					placeholder: template.isDynamic ? "动态生成时会使用内置模板" : "输入YAML模板内容",
+					placeholder: template.isDynamic
+						? "动态生成时会使用内置模板"
+						: "输入YAML模板内容",
 				},
 			});
 			textarea.value = template.content;
@@ -304,71 +351,120 @@ export class SampleSettingTab extends PluginSettingTab {
 			const ruleDiv = containerEl.createDiv({
 				cls: "tag-rule-item",
 				attr: {
-					style: "margin-bottom: 10px; padding: 10px; border: 1px solid var(--background-modifier-border); border-radius: 5px;",
+					style: "margin-bottom: 8px; padding: 8px; border: 1px solid var(--background-modifier-border); border-radius: 4px;",
+				},
+			});
+
+			// 规则头部: 名称 + 开关 + 删除按钮
+			const headerDiv = ruleDiv.createDiv({
+				attr: {
+					style: "display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;",
+				},
+			});
+
+			const titleSpan = headerDiv.createSpan({
+				text: `规则 ${index + 1}`,
+				attr: { style: "font-weight: 600; font-size: 0.95em;" },
+			});
+
+			const controlsDiv = headerDiv.createDiv({
+				attr: {
+					style: "display: flex; align-items: center; gap: 8px;",
 				},
 			});
 
 			// 启用/禁用开关
-			new Setting(ruleDiv)
-				.setName(`规则 ${index + 1}`)
-				.addToggle((toggle) =>
-					toggle.setValue(rule.enabled).onChange(async (value) => {
-						rule.enabled = value;
-						await this.plugin.saveSettings();
-					}),
-				)
-				.addButton((button) =>
-					button
-						.setIcon("trash")
-						.setTooltip("删除规则")
-						.onClick(async () => {
-							this.plugin.settings.tagRules.splice(index, 1);
-							await this.plugin.saveSettings();
-							this.display();
-							new Notice("已删除规则");
-						}),
-				);
+			const toggle = controlsDiv.createEl("input", {
+				attr: {
+					type: "checkbox",
+					style: "cursor: pointer;",
+				},
+			}) as HTMLInputElement;
+			toggle.checked = rule.enabled;
+
+			// 删除按钮
+			const deleteBtn = controlsDiv.createEl("button", {
+				text: "🗑️",
+				attr: {
+					style: "padding: 2px 8px; cursor: pointer; background: transparent; border: 1px solid var(--background-modifier-border); border-radius: 3px;",
+				},
+			});
+			deleteBtn.addEventListener("click", () => {
+				this.plugin.settings.tagRules.splice(index, 1);
+				void this.plugin.saveSettings().then(() => {
+					this.display();
+					new Notice("已删除规则");
+				});
+			});
+
+			// 关键词和标签并排显示
+			const fieldsDiv = ruleDiv.createDiv({
+				attr: {
+					style: "display: grid; grid-template-columns: 1fr 1fr; gap: 8px;",
+				},
+			});
 
 			// 关键词输入
-			new Setting(ruleDiv)
-				.setName("关键词(支持正则)")
-				.setDesc("匹配笔记内容的关键词或正则表达式")
-				.addText((text) =>
-					text
-						.setPlaceholder("例如: 教程|tutorial")
-						.setValue(rule.keyword)
-						.onChange(async (value) => {
-							rule.keyword = value;
-							await this.plugin.saveSettings();
-						}),
-				);
+			const keywordGroup = fieldsDiv.createDiv();
+			const keywordLabel = keywordGroup.createEl("label", {
+				text: "关键词(支持正则)",
+				attr: {
+					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
+				},
+			});
+			const keywordInput = keywordGroup.createEl("input", {
+				attr: {
+					type: "text",
+					placeholder: "教程|tutorial",
+					value: rule.keyword,
+					style: "width: 100%; padding: 4px 8px; font-size: 0.9em;",
+				},
+			});
+			keywordInput.addEventListener("change", () => {
+				rule.keyword = keywordInput.value;
+				void this.plugin.saveSettings();
+			});
 
 			// 标签输入
-			new Setting(ruleDiv)
-				.setName("标签")
-				.setDesc("匹配成功后添加的标签(不含#)")
-				.addText((text) =>
-					text
-						.setPlaceholder("例如: tutorial")
-						.setValue(rule.tag)
-						.onChange(async (value) => {
-							rule.tag = value;
-							await this.plugin.saveSettings();
-						}),
-				);
+			const tagGroup = fieldsDiv.createDiv();
+			const tagLabel = tagGroup.createEl("label", {
+				text: "标签(不含#)",
+				attr: {
+					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
+				},
+			});
+			const tagInput = tagGroup.createEl("input", {
+				attr: {
+					type: "text",
+					placeholder: "tutorial",
+					value: rule.tag,
+					style: "width: 100%; padding: 4px 8px; font-size: 0.9em;",
+				},
+			});
+			tagInput.addEventListener("change", () => {
+				rule.tag = tagInput.value;
+				void this.plugin.saveSettings();
+			});
 
-			// 区分大小写选项
-			new Setting(ruleDiv)
-				.setName("区分大小写")
-				.setDesc("关键词匹配时是否区分大小写")
-				.addToggle((toggle) =>
-					toggle
-						.setValue(rule.caseSensitive)
-						.onChange(async (value) => {
-							rule.caseSensitive = value;
-							await this.plugin.saveSettings();
-						}),
-				);
+			// 区分大小写选项(行内显示)
+			const optionsDiv = ruleDiv.createDiv({
+				attr: {
+					style: "margin-top: 8px; display: flex; align-items: center; gap: 8px;",
+				},
+			});
+
+			const caseToggle = optionsDiv.createEl("input", {
+				attr: {
+					type: "checkbox",
+					style: "cursor: pointer;",
+				},
+			}) as HTMLInputElement;
+			caseToggle.checked = rule.caseSensitive;
+
+			optionsDiv.createSpan({
+				text: "区分大小写",
+				attr: { style: "font-size: 0.85em; color: var(--text-muted);" },
+			});
 		});
 	}
 }
