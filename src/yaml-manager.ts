@@ -144,6 +144,8 @@ export function generateDynamicYaml(filePath: string): Record<string, unknown> {
 	return {
 		title: title,
 		date: dateStr,
+		categories: [],
+		author: "",
 		tags: [],
 	};
 }

@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, Modal } from "obsidian";
 import MyPlugin from "./main";
 
 export interface YamlTemplate {
@@ -23,7 +23,8 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	yamlTemplates: [
 		{
 			name: "默认模板",
-			content: "title: {{title}}\ndate: {{date}}\ntags: []",
+			content:
+				"title: {{title}}\ndate: {{date}}\ncategories: []\nauthor: \ntags: []",
 			isDynamic: true,
 		},
 	],
@@ -121,43 +122,165 @@ export class SampleSettingTab extends PluginSettingTab {
 			// 动态生成选项
 			new Setting(templateDiv)
 				.setName("动态生成")
-				.setDesc("根据笔记内容自动生成YAML")
+				.setDesc("根据笔记内容自动生成YAML(关闭后可手动编辑模板内容)")
 				.addToggle((toggle) =>
 					toggle
 						.setValue(template.isDynamic)
 						.onChange(async (value) => {
 							template.isDynamic = value;
 							await this.plugin.saveSettings();
+							this.display(); // 重新渲染以显示/隐藏编辑器
 						}),
 				);
 
-			// 模板内容编辑器
-			if (!template.isDynamic) {
-				const contentDiv = templateDiv.createDiv({
-					attr: { style: "margin-top: 10px;" },
+			// 模板内容编辑器(始终显示)
+			const contentDiv = templateDiv.createDiv({
+				attr: { style: "margin-top: 10px;" },
+			});
+			contentDiv.createEl("label", { 
+				text: template.isDynamic ? "模板内容(动态生成时会覆盖此内容):" : "模板内容:",
+				attr: { style: template.isDynamic ? "color: var(--text-muted);" : "" }
+			});
+			const textarea = contentDiv.createEl("textarea", {
+				attr: {
+					rows: "6",
+					style: "width: 100%; margin-top: 5px; font-family: monospace;",
+					placeholder: template.isDynamic ? "动态生成时会使用内置模板" : "输入YAML模板内容",
+				},
+			});
+			textarea.value = template.content;
+			textarea.addEventListener("change", () => {
+				template.content = textarea.value;
+				void this.plugin.saveSettings().then(() => {
+					new Notice("模板已保存");
 				});
-				contentDiv.createEl("label", { text: "模板内容:" });
-				const textarea = contentDiv.createEl("textarea", {
-					attr: {
-						rows: "5",
-						style: "width: 100%; margin-top: 5px; font-family: monospace;",
-					},
-				});
-				textarea.value = template.content;
-				textarea.addEventListener("change", () => {
-					template.content = textarea.value;
-					void this.plugin.saveSettings().then(() => {
-						new Notice("模板已保存");
-					});
-				});
-			}
+			});
 		});
+	}
+
+	/**
+	 * 显示批量导入对话框
+	 */
+	showBatchImportModal(): void {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("批量导入标签规则");
+
+		const contentDiv = modal.contentEl.createDiv({
+			attr: { style: "padding: 10px;" },
+		});
+
+		contentDiv.createEl("p", {
+			text: "请输入JSON格式的规则映射（关键词 -> 标签）：",
+		});
+
+		const textarea = contentDiv.createEl("textarea", {
+			attr: {
+				rows: "15",
+				style: "width: 100%; font-family: monospace; font-size: 12px;",
+			},
+		});
+
+		// 预设示例
+		textarea.value = `{
+    "javascript": "javascript",
+    "python": "python",
+    "obsidian": "obsidian",
+    "日记": "diary",
+    "读书笔记": "reading",
+    "项目管理": "project"
+}`;
+
+		const buttonDiv = contentDiv.createDiv({
+			attr: { style: "margin-top: 15px; text-align: right;" },
+		});
+
+		buttonDiv
+			.createEl("button", {
+				text: "取消",
+				attr: { style: "margin-right: 10px;" },
+			})
+			.addEventListener("click", () => {
+				modal.close();
+			});
+
+		buttonDiv
+			.createEl("button", {
+				text: "导入",
+				attr: {
+					class: "mod-cta",
+					style: "margin-right: 10px;",
+				},
+			})
+			.addEventListener("click", async () => {
+				try {
+					const jsonText = textarea.value.trim();
+					if (!jsonText) {
+						new Notice("请输入JSON内容");
+						return;
+					}
+
+					const rulesMap = JSON.parse(jsonText);
+
+					if (
+						typeof rulesMap !== "object" ||
+						Array.isArray(rulesMap)
+					) {
+						new Notice(
+							'JSON格式错误：需要对象格式 {"关键词": "标签"}',
+						);
+						return;
+					}
+
+					let importCount = 0;
+					for (const [keyword, tag] of Object.entries(rulesMap)) {
+						if (
+							typeof keyword === "string" &&
+							typeof tag === "string"
+						) {
+							// 移除标签的#前缀（如果有）
+							const cleanTag = tag.startsWith("#")
+								? tag.substring(1)
+								: tag;
+
+							this.plugin.settings.tagRules.push({
+								keyword: keyword,
+								tag: cleanTag,
+								caseSensitive: false,
+								enabled: true,
+							});
+							importCount++;
+						}
+					}
+
+					await this.plugin.saveSettings();
+					this.display();
+					modal.close();
+					new Notice(`成功导入 ${importCount} 条规则`);
+				} catch (error) {
+					new Notice(
+						`导入失败：${error instanceof Error ? error.message : "JSON格式错误"}`,
+					);
+					console.error(error);
+				}
+			});
+
+		modal.open();
 	}
 
 	/**
 	 * 显示标签匹配规则配置
 	 */
 	displayTagRules(containerEl: HTMLElement): void {
+		// 批量导入按钮
+		new Setting(containerEl)
+			.setName("批量导入规则")
+			.setDesc("从JSON格式快速导入多个标签匹配规则")
+			.addButton((button) =>
+				button.setButtonText("导入").onClick(() => {
+					this.showBatchImportModal();
+				}),
+			);
+
 		// 添加新规则按钮
 		new Setting(containerEl)
 			.setName("添加新规则")
