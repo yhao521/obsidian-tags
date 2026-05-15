@@ -1,5 +1,44 @@
-import { App, PluginSettingTab, Setting, Notice, Modal } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, Modal, TFolder, SuggestModal, TAbstractFile } from "obsidian";
 import MyPlugin from "./main";
+
+/**
+ * 文件夹选择模态框
+ */
+class FolderSuggestModal extends SuggestModal<string> {
+	private onChooseCallback: (path: string) => void;
+	private folderList: string[];
+
+	constructor(
+		app: App,
+		onChooseCallback: (path: string) => void,
+	) {
+		super(app);
+		this.onChooseCallback = onChooseCallback;
+		this.setPlaceholder("搜索或选择文件夹...");
+		this.inputEl.placeholder = "搜索文件夹...";
+		
+		// 收集所有文件夹路径
+		this.folderList = this.app.vault.getAllLoadedFiles()
+			.filter((f): f is TFolder => f instanceof TFolder)
+			.map((folder) => (folder.path === "/" ? "" : folder.path));
+	}
+
+	getSuggestions(query: string): string[] {
+		const queryLower = query.toLowerCase();
+		return this.folderList
+			.filter((path) => path.toLowerCase().includes(queryLower))
+			.slice(0, 100);
+	}
+
+	renderSuggestion(path: string, el: HTMLElement): void {
+		// 显示文件夹图标和路径
+		el.createEl("div", { text: "📁 " + (path || "根目录") });
+	}
+
+	onChooseSuggestion(path: string): void {
+		this.onChooseCallback(path);
+	}
+}
 
 export interface YamlTemplate {
 	name: string;
@@ -91,15 +130,17 @@ export class SampleSettingTab extends PluginSettingTab {
 			)
 			.addButton((button) =>
 				button.setButtonText("选择").onClick(async () => {
-					// 使用Obsidian的文件选择器
-					const file = await this.app.vault.getAbstractFileByPath(
-						this.plugin.settings.targetDirectory || "/",
-					);
-					if (file) {
-						new Notice(`已选择目录: ${file.path}`);
-					} else {
-						new Notice("目录不存在,请输入正确的路径");
-					}
+					// 使用Obsidian的文件夹选择器
+					new FolderSuggestModal(this.app, (selectedPath) => {
+						this.plugin.settings.targetDirectory = selectedPath;
+						void this.plugin.saveSettings();
+						// 更新输入框显示
+						const inputEl = containerEl.querySelector("input");
+						if (inputEl) {
+							(inputEl as HTMLInputElement).value = selectedPath;
+						}
+						new Notice(`已选择目录: ${selectedPath || "当前文件"}`);
+					}).open();
 				}),
 			);
 	}
