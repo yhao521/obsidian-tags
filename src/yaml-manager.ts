@@ -173,7 +173,25 @@ export function insertYamlFrontmatter(
 
 	if (template.isDynamic) {
 		// 动态生成YAML
-		yamlData = generateDynamicYaml(filePath);
+		const dynamicYaml = generateDynamicYaml(filePath);
+
+		// 解析模板内容,获取用户自定义的静态字段
+		const templateVariables: Record<string, string> = {
+			title: filePath
+				? filePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled"
+				: "Untitled",
+			created: new Date().toISOString().split("T")[0] || "",
+			updated: new Date().toISOString().split("T")[0] || "",
+			filepath: filePath,
+		};
+		const replacedTemplate = replaceTemplateVariables(
+			template.content,
+			templateVariables,
+		);
+		const templateData = parseSimpleYaml(replacedTemplate);
+
+		// 合并:动态生成的值优先,但保留模板中的自定义静态值
+		yamlData = { ...templateData, ...dynamicYaml };
 	} else {
 		// 使用静态模板
 		const variables: Record<string, string> = {
