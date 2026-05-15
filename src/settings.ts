@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 		{
 			name: "默认模板",
 			content:
-				"title: {{title}}\ndate: {{date}}\ncategories: []\nauthor: \ntags: []",
+				"title: {{title}}\ncreated: {{created}}\nupdated: {{updated}}\ncategories: []\nauthor: \ndescription: \nsource: \nlink: \naliases: []\ntags: []",
 			isDynamic: true,
 		},
 	],
@@ -116,7 +116,8 @@ export class SampleSettingTab extends PluginSettingTab {
 				button.setButtonText("添加").onClick(async () => {
 					this.plugin.settings.yamlTemplates.push({
 						name: "新模板",
-						content: "title: {{title}}\ndate: {{date}}\ntags: []",
+						content:
+							"title: {{title}}\ndate: {{date}}\nupdated: {{updated}}\ncategories: []\nauthor: \ndescription: \nsource: \nlink: \naliases: []\ntags: []",
 						isDynamic: true,
 					});
 					await this.plugin.saveSettings();

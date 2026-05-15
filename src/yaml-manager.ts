@@ -143,9 +143,14 @@ export function generateDynamicYaml(filePath: string): Record<string, unknown> {
 
 	return {
 		title: title,
-		date: dateStr,
+		created: dateStr,
+		updated: dateStr,
 		categories: [],
 		author: "",
+		description: "",
+		source: "",
+		link: "",
+		aliases: [],
 		tags: [],
 	};
 }
@@ -175,7 +180,8 @@ export function insertYamlFrontmatter(
 			title: filePath
 				? filePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled"
 				: "Untitled",
-			date: new Date().toISOString().split("T")[0] || "",
+			created: new Date().toISOString().split("T")[0] || "",
+			updated: new Date().toISOString().split("T")[0] || "",
 			filepath: filePath,
 		};
 		const replacedTemplate = replaceTemplateVariables(
