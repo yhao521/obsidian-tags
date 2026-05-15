@@ -165,7 +165,7 @@ export class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.yamlTemplates.push({
 						name: "新模板",
 						content:
-							"title: {{title}}\ndate: {{date}}\nupdated: {{updated}}\ncategories: []\nauthor: \ndescription: \nsource: \nlink: \naliases: []\ntags: []",
+							"title: {{title}}\ncreated: {{created}}\nupdated: {{updated}}\ncategories: []\nauthor: \ndescription: \nsource: \nlink: \naliases: []\ntags: []",
 						isDynamic: true,
 					});
 					await this.plugin.saveSettings();

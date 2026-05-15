@@ -209,15 +209,41 @@ export function insertYamlFrontmatter(
 		yamlData = parseSimpleYaml(replacedTemplate);
 	}
 
-	// 如果已有frontmatter,合并数据
+	// 如果已有frontmatter,保留用户自定义的属性
 	if (hasFrontmatter) {
 		const existingData = parseSimpleYaml(frontmatter);
-		// 保留原有的tags,除非模板中明确指定
-		if (!yamlData.tags && existingData.tags) {
-			yamlData.tags = existingData.tags;
+
+		// 合并策略:
+		// 1. 保留所有用户已有的字段(不覆盖)
+		// 2. 只添加模板中定义但用户没有的字段
+		// 3. 特殊处理tags:合并去重
+
+		const mergedData: Record<string, unknown> = { ...existingData };
+
+		// 只添加模板中定义但用户没有的字段
+		for (const [key, value] of Object.entries(yamlData)) {
+			if (!(key in mergedData)) {
+				// 用户没有这个字段,添加模板的默认值
+				mergedData[key] = value;
+			}
+			// 如果用户已有这个字段,保留用户的值,不做任何操作
 		}
-		// 合并其他字段
-		yamlData = { ...existingData, ...yamlData };
+
+		// tags特殊处理:合并去重
+		if (Array.isArray(mergedData.tags) || Array.isArray(yamlData.tags)) {
+			const existingTags = Array.isArray(mergedData.tags)
+				? (mergedData.tags as string[])
+				: [];
+			const templateTags = Array.isArray(yamlData.tags)
+				? (yamlData.tags as string[])
+				: [];
+			const allTags = [...existingTags, ...templateTags];
+			// 去重
+			const uniqueTags = Array.from(new Set(allTags));
+			mergedData.tags = uniqueTags;
+		}
+
+		yamlData = mergedData;
 	}
 
 	const yamlString = objectToYaml(yamlData);
