@@ -253,8 +253,19 @@ export function insertYamlFrontmatter(
 		);
 		const templateData = parseSimpleYaml(replacedTemplate);
 
-		// 合并:动态生成的值优先,但保留模板中的自定义静态值
-		yamlData = { ...templateData, ...dynamicYaml };
+		// 合并策略:
+		// 1. 模板中的静态值优先(如author, description等)
+		// 2. 动态生成的值只覆盖特定字段(title, created, updated)
+		// 3. 这样既能享受动态生成的便利,又能保留模板中的自定义值
+		const dynamicOnlyFields = ["title", "created", "updated"];
+		yamlData = { ...templateData }; // 先复制模板值
+
+		// 然后用动态值覆盖特定字段
+		for (const field of dynamicOnlyFields) {
+			if (field in dynamicYaml) {
+				yamlData[field] = dynamicYaml[field];
+			}
+		}
 	} else {
 		// 使用静态模板
 		const variables: Record<string, string> = {
@@ -272,28 +283,38 @@ export function insertYamlFrontmatter(
 		yamlData = parseSimpleYaml(replacedTemplate);
 	}
 
-	// 如果已有frontmatter,保留用户自定义的属性
+	// 如果已有frontmatter,智能合并属性值
 	if (hasFrontmatter) {
 		const existingData = parseSimpleYaml(frontmatter);
 
 		// 合并策略:
-		// 1. 保留所有用户已有的字段(不覆盖)
-		// 2. 只添加模板中定义但用户没有的字段
-		// 3. 特殊处理tags:合并去重
+		// 1. 用户有值的字段,保留用户的值(不覆盖)
+		// 2. 用户字段值为空的,用模板的值填充
+		// 3. 用户没有的字段,添加模板的默认值
+		// 4. 特殊处理tags:合并去重
 
 		const mergedData: Record<string, unknown> = { ...existingData };
 
-		// 只添加模板中定义但用户没有的字段
+		// 判断值是否为空
+		const isEmptyValue = (value: unknown): boolean => {
+			if (value === "" || value === null || value === undefined)
+				return true;
+			if (Array.isArray(value) && value.length === 0) return true;
+			return false;
+		};
+
 		for (const [key, value] of Object.entries(yamlData)) {
 			if (key === "tags") {
 				// tags在循环外特殊处理
 				continue;
 			}
-			if (!(key in mergedData)) {
-				// 用户没有这个字段,添加模板的默认值
+
+			const userValue = mergedData[key];
+			if (isEmptyValue(userValue)) {
+				// 用户字段为空,用模板值填充
 				mergedData[key] = value;
 			}
-			// 如果用户已有这个字段,保留用户的值,不做任何操作
+			// 如果用户有值,保留用户的值
 		}
 
 		// tags特殊处理:合并去重
