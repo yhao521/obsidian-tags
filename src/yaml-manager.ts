@@ -41,10 +41,38 @@ export function extractFrontmatter(content: string): {
 export function parseSimpleYaml(yamlString: string): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	const lines = yamlString.split("\n");
+	let currentArrayKey = "";
+	let currentArray: string[] = [];
 
-	for (const line of lines) {
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		if (!line) continue;
 		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
+
+		// 跳过空行和注释
+		if (!trimmed || trimmed.startsWith("#")) {
+			continue;
+		}
+
+		// 检查是否是数组项 (以 - 开头)
+		if (trimmed.startsWith("- ") && currentArrayKey) {
+			const value = trimmed.substring(2).trim();
+			// 移除引号
+			const cleanValue =
+				(value.startsWith('"') && value.endsWith('"')) ||
+				(value.startsWith("'") && value.endsWith("'"))
+					? value.slice(1, -1)
+					: value;
+			currentArray.push(cleanValue);
+			continue;
+		}
+
+		// 如果之前正在处理数组,先保存它
+		if (currentArrayKey && currentArray.length > 0) {
+			result[currentArrayKey] = currentArray;
+			currentArrayKey = "";
+			currentArray = [];
+		}
 
 		const colonIndex = trimmed.indexOf(":");
 		if (colonIndex === -1) continue;
@@ -52,19 +80,49 @@ export function parseSimpleYaml(yamlString: string): Record<string, unknown> {
 		const key = trimmed.substring(0, colonIndex).trim();
 		let value: unknown = trimmed.substring(colonIndex + 1).trim();
 
+		// 空值
+		if (value === "" || value === "~" || value === "null") {
+			// 检查下一行是否是数组格式
+			if (i + 1 < lines.length) {
+				const nextLine = lines[i + 1]?.trim();
+				if (nextLine && nextLine.startsWith("- ")) {
+					// 这是一个多行数组
+					currentArrayKey = key;
+					currentArray = [];
+					continue;
+				}
+			}
+			result[key] = "";
+			continue;
+		}
+
 		// 处理数组格式 [tag1, tag2]
 		if (
 			typeof value === "string" &&
 			value.startsWith("[") &&
 			value.endsWith("]")
 		) {
-			const arrayContent = value.slice(1, -1);
-			value = arrayContent
-				? arrayContent.split(",").map((item: string) => item.trim())
-				: [];
+			const arrayContent = value.slice(1, -1).trim();
+			if (arrayContent) {
+				const items = arrayContent.split(",").map((item: string) => {
+					const trimmedItem = item.trim();
+					// 移除引号
+					return (trimmedItem.startsWith('"') &&
+						trimmedItem.endsWith('"')) ||
+						(trimmedItem.startsWith("'") &&
+							trimmedItem.endsWith("'"))
+						? trimmedItem.slice(1, -1)
+						: trimmedItem;
+				});
+				result[key] = items;
+			} else {
+				result[key] = [];
+			}
+			continue;
 		}
+
 		// 移除引号
-		else if (
+		if (
 			typeof value === "string" &&
 			((value.startsWith('"') && value.endsWith('"')) ||
 				(value.startsWith("'") && value.endsWith("'")))
@@ -73,6 +131,11 @@ export function parseSimpleYaml(yamlString: string): Record<string, unknown> {
 		}
 
 		result[key] = value;
+	}
+
+	// 处理最后一个数组
+	if (currentArrayKey && currentArray.length > 0) {
+		result[currentArrayKey] = currentArray;
 	}
 
 	return result;

@@ -2,6 +2,15 @@ import { TagRule } from "./settings";
 import { extractFrontmatter } from "./yaml-manager";
 
 /**
+ * 转义正则表达式特殊字符
+ * @param str 要转义的字符串
+ * @returns 转义后的字符串
+ */
+function escapeRegExp(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+}
+
+/**
  * 标签匹配引擎
  * 根据配置的规则扫描笔记正文并返回匹配的标签
  */
@@ -30,9 +39,17 @@ export function matchTags(content: string, rules: TagRule[]): string[] {
 		if (!rule.enabled) continue;
 
 		try {
+			// 智能处理: 如果关键词包含 | 说明用户想使用正则(如 "教程|tutorial"),直接使用
+			// 否则视为普通文本,转义所有正则特殊字符(如 "c++" -> "c\+\+")
+			let keyword = rule.keyword;
+			if (!keyword.includes("|")) {
+				// 不包含正则或操作符,视为普通文本,转义所有特殊字符
+				keyword = escapeRegExp(keyword);
+			}
+
 			// 构建正则表达式
 			const flags = rule.caseSensitive ? "g" : "gi";
-			const regex = new RegExp(rule.keyword, flags);
+			const regex = new RegExp(keyword, flags);
 
 			// 测试是否匹配
 			if (regex.test(content)) {
