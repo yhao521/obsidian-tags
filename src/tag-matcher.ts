@@ -36,10 +36,10 @@ export function matchTags(content: string, rules: TagRule[]): string[] {
 
 			// 测试是否匹配
 			if (regex.test(content)) {
-				// 确保标签以#开头
+				// 标签名不加#前缀(存储到frontmatter中时不需要#)
 				const tag = rule.tag.startsWith("#")
-					? rule.tag
-					: `#${rule.tag}`;
+					? rule.tag.substring(1)
+					: rule.tag;
 				matchedTags.add(tag);
 			}
 		} catch (error) {

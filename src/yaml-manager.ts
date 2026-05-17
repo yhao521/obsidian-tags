@@ -222,6 +222,10 @@ export function insertYamlFrontmatter(
 
 		// 只添加模板中定义但用户没有的字段
 		for (const [key, value] of Object.entries(yamlData)) {
+			if (key === "tags") {
+				// tags在循环外特殊处理
+				continue;
+			}
 			if (!(key in mergedData)) {
 				// 用户没有这个字段,添加模板的默认值
 				mergedData[key] = value;
@@ -230,18 +234,16 @@ export function insertYamlFrontmatter(
 		}
 
 		// tags特殊处理:合并去重
-		if (Array.isArray(mergedData.tags) || Array.isArray(yamlData.tags)) {
-			const existingTags = Array.isArray(mergedData.tags)
-				? (mergedData.tags as string[])
-				: [];
-			const templateTags = Array.isArray(yamlData.tags)
-				? (yamlData.tags as string[])
-				: [];
-			const allTags = [...existingTags, ...templateTags];
-			// 去重
-			const uniqueTags = Array.from(new Set(allTags));
-			mergedData.tags = uniqueTags;
-		}
+		const existingTags = Array.isArray(mergedData.tags)
+			? (mergedData.tags as string[])
+			: [];
+		const templateTags = Array.isArray(yamlData.tags)
+			? (yamlData.tags as string[])
+			: [];
+		const allTags = [...existingTags, ...templateTags];
+		// 去重
+		const uniqueTags = Array.from(new Set(allTags));
+		mergedData.tags = uniqueTags;
 
 		yamlData = mergedData;
 	}
@@ -274,23 +276,28 @@ export function addTagsToFrontmatter(
 	const existingData = parseSimpleYaml(frontmatter);
 	let existingTags: string[] = [];
 
-	// 获取现有标签
+	// 获取现有标签(已经是纯标签名,不需要#)
 	if (existingData.tags) {
 		if (Array.isArray(existingData.tags)) {
 			existingTags = existingData.tags.map((tag: string) =>
-				tag.startsWith("#") ? tag : `#${tag}`,
+				tag.startsWith("#") ? tag.substring(1) : tag,
 			);
 		} else if (typeof existingData.tags === "string") {
 			existingTags = [
 				existingData.tags.startsWith("#")
-					? existingData.tags
-					: `#${existingData.tags}`,
+					? existingData.tags.substring(1)
+					: existingData.tags,
 			];
 		}
 	}
 
+	// 新标签也要去掉#前缀(如果有的话)
+	const cleanedNewTags = newTags.map((tag) =>
+		tag.startsWith("#") ? tag.substring(1) : tag,
+	);
+
 	// 合并标签并去重
-	const allTags = new Set([...existingTags, ...newTags]);
+	const allTags = new Set([...existingTags, ...cleanedNewTags]);
 	existingData.tags = Array.from(allTags);
 
 	const yamlString = objectToYaml(existingData);
