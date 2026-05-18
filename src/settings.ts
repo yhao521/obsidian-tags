@@ -62,7 +62,7 @@ export interface TagRule {
 export interface ObsidianTagsSettings {
 	yamlTemplates: YamlTemplate[];
 	tagRules: TagRule[];
-	targetDirectory: string; // 目标目录路径,为空则处理当前文件
+	targetDirectory: string; // 目标目录路径,为空则处理库根目录下所有md文件
 }
 
 export const DEFAULT_SETTINGS: ObsidianTagsSettings = {
@@ -88,7 +88,7 @@ export const DEFAULT_SETTINGS: ObsidianTagsSettings = {
 			enabled: true,
 		},
 	],
-	targetDirectory: "", // 默认为空,处理当前文件
+	targetDirectory: "", // 默认为空,处理库根目录下所有md文件
 };
 
 export class TagsSettingTab extends PluginSettingTab {
@@ -123,11 +123,11 @@ export class TagsSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("目标目录")
 			.setDesc(
-				'指定批量处理的目录路径（相对于库根目录）。留空则仅处理当前打开的文件。示例："00-inbox" 或 "notes/tutorials"',
+				'指定批量处理的目录路径（相对于库根目录）。留空则处理库根目录下所有md文件。示例："00-inbox" 或 "notes/tutorials"',
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("留空则处理当前文件")
+					.setPlaceholder("留空则处理库根目录下所有md文件")
 					.setValue(this.plugin.settings.targetDirectory)
 					.onChange(async (value) => {
 						this.plugin.settings.targetDirectory = value.trim();
@@ -147,7 +147,7 @@ export class TagsSettingTab extends PluginSettingTab {
 						if (inputEl) {
 							inputEl.value = selectedPath;
 						}
-						new Notice(`已选择目录: ${selectedPath || "当前文件"}`);
+						new Notice(`已选择目录: ${selectedPath || "库根目录"}`);
 					}).open();
 				}),
 			);

@@ -162,11 +162,11 @@ export default class ObsidianTagsPlugin extends Plugin {
 	async applyYamlAndTags(): Promise<void> {
 		// 检查是否配置了目标目录
 		if (this.settings.targetDirectory) {
-			// 批量处理目录
+			// 批量处理指定目录
 			await this.processDirectory(this.settings.targetDirectory);
 		} else {
-			// 处理当前文件
-			await this.processCurrentFile();
+			// 目标目录为空时,处理库根目录下所有md文件
+			await this.processRootDirectory();
 		}
 	}
 
@@ -222,6 +222,90 @@ export default class ObsidianTagsPlugin extends Plugin {
 		} catch (error) {
 			new Notice(
 				`操作失败: ${error instanceof Error ? error.message : String(error)}`,
+			);
+			console.error(error);
+		}
+	}
+
+	/**
+	 * 处理库根目录下的所有Markdown文件
+	 */
+	async processRootDirectory(): Promise<void> {
+		try {
+			// 获取库根目录
+			const root = this.app.vault.getRoot();
+
+			// 递归获取所有Markdown文件
+			const markdownFiles: TFile[] = [];
+			this.collectMarkdownFiles(root, markdownFiles);
+
+			if (markdownFiles.length === 0) {
+				new Notice("库中没有找到Markdown文件");
+				return;
+			}
+
+			new Notice(`开始处理库中 ${markdownFiles.length} 个文件...`);
+
+			let successCount = 0;
+			let errorCount = 0;
+			let totalTags = 0;
+
+			// 批量处理文件
+			for (const file of markdownFiles) {
+				try {
+					// 读取文件内容
+					const content = await this.app.vault.read(file);
+					let updatedContent = content;
+
+					// 1. 生成/插入YAML
+					if (this.settings.yamlTemplates.length > 0) {
+						const template = this.settings.yamlTemplates[0];
+						if (template) {
+							updatedContent = insertYamlFrontmatter(
+								content,
+								template,
+								file.path,
+							);
+						}
+					}
+
+					// 2. 匹配并添加标签
+					const bodyContent = extractBodyContent(updatedContent);
+					const matchedTags = matchTags(
+						bodyContent,
+						this.settings.tagRules,
+					);
+
+					if (matchedTags.length > 0) {
+						updatedContent = addTagsToFrontmatter(
+							updatedContent,
+							matchedTags,
+						);
+						totalTags += matchedTags.length;
+					}
+
+					// 3. 保存更改
+					await this.app.vault.modify(file, updatedContent);
+					successCount++;
+				} catch (error) {
+					errorCount++;
+					console.error(`处理文件失败 ${file.path}:`, error);
+				}
+			}
+
+			// 显示处理结果
+			if (errorCount === 0) {
+				new Notice(
+					`批量处理完成！成功处理 ${successCount} 个文件，添加了 ${totalTags} 个标签`,
+				);
+			} else {
+				new Notice(
+					`批量处理完成！成功 ${successCount} 个，失败 ${errorCount} 个，添加了 ${totalTags} 个标签`,
+				);
+			}
+		} catch (error) {
+			new Notice(
+				`批量处理失败: ${error instanceof Error ? error.message : String(error)}`,
 			);
 			console.error(error);
 		}
