@@ -307,57 +307,95 @@ export class SampleSettingTab extends PluginSettingTab {
 					style: "margin-right: 10px;",
 				},
 			})
-			.addEventListener("click", async () => {
-				try {
-					const jsonText = textarea.value.trim();
-					if (!jsonText) {
-						new Notice("请输入JSON内容");
-						return;
-					}
-
-					const rulesMap = JSON.parse(jsonText);
-
-					if (
-						typeof rulesMap !== "object" ||
-						Array.isArray(rulesMap)
-					) {
-						new Notice(
-							'JSON格式错误：需要对象格式 {"关键词": "标签"}',
-						);
-						return;
-					}
-
-					let importCount = 0;
-					for (const [keyword, tag] of Object.entries(rulesMap)) {
-						if (
-							typeof keyword === "string" &&
-							typeof tag === "string"
-						) {
-							// 移除标签的#前缀（如果有）
-							const cleanTag = tag.startsWith("#")
-								? tag.substring(1)
-								: tag;
-
-							this.plugin.settings.tagRules.push({
-								keyword: keyword,
-								tag: cleanTag,
-								caseSensitive: false,
-								enabled: true,
-							});
-							importCount++;
+			.addEventListener("click", () => {
+				void (async () => {
+					try {
+						const jsonText = textarea.value.trim();
+						if (!jsonText) {
+							new Notice("请输入JSON内容");
+							return;
 						}
-					}
 
-					await this.plugin.saveSettings();
-					this.display();
-					modal.close();
-					new Notice(`成功导入 ${importCount} 条规则`);
-				} catch (error) {
-					new Notice(
-						`导入失败：${error instanceof Error ? error.message : "JSON格式错误"}`,
-					);
-					console.error(error);
-				}
+						const rulesMap = JSON.parse(jsonText) as Record<
+							string,
+							string
+						>;
+
+						if (
+							typeof rulesMap !== "object" ||
+							Array.isArray(rulesMap)
+						) {
+							new Notice(
+								'JSON格式错误：需要对象格式 {"关键词": "标签"}',
+							);
+							return;
+						}
+
+						let importCount = 0;
+						let updateCount = 0;
+
+						for (const [keyword, tag] of Object.entries(rulesMap)) {
+							if (
+								typeof keyword === "string" &&
+								typeof tag === "string"
+							) {
+								// 移除标签的#前缀（如果有）
+								const cleanTag = tag.startsWith("#")
+									? tag.substring(1)
+									: tag;
+
+								// 检查是否已存在相同关键词的规则
+								const existingRuleIndex =
+									this.plugin.settings.tagRules.findIndex(
+										(rule) => rule.keyword === keyword,
+									);
+
+								if (existingRuleIndex !== -1) {
+									// 关键词已存在，更新标签
+									const existingRule =
+										this.plugin.settings.tagRules[
+											existingRuleIndex
+										];
+									if (existingRule) {
+										existingRule.tag = cleanTag;
+										updateCount++;
+									}
+								} else {
+									// 关键词不存在，添加新规则
+									this.plugin.settings.tagRules.push({
+										keyword: keyword,
+										tag: cleanTag,
+										caseSensitive: false,
+										enabled: true,
+									});
+									importCount++;
+								}
+							}
+						}
+
+						await this.plugin.saveSettings();
+						this.display();
+						modal.close();
+
+						// 显示详细的导入结果
+						const messages: string[] = [];
+						if (importCount > 0)
+							messages.push(`新增 ${importCount} 条`);
+						if (updateCount > 0)
+							messages.push(`更新 ${updateCount} 条`);
+
+						if (messages.length === 0) {
+							new Notice("没有可导入的规则");
+						} else {
+							new Notice(`导入完成：${messages.join("，")}`);
+						}
+					} catch (error) {
+						new Notice(
+							`导入失败：${error instanceof Error ? error.message : "JSON格式错误"}`,
+						);
+						console.error(error);
+					}
+				})();
 			});
 
 		modal.open();
