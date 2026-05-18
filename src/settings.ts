@@ -104,15 +104,15 @@ export class TagsSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// 目标目录设置区域
-		new Setting(containerEl).setName("Processing").setHeading();
+		new Setting(containerEl).setName("处理设置").setHeading();
 		this.displayTargetDirectory(containerEl);
 
 		// YAML模板设置区域
-		new Setting(containerEl).setName("YAML templates").setHeading();
+		new Setting(containerEl).setName("YAML模板").setHeading();
 		this.displayYamlTemplates(containerEl);
 
 		// 标签规则设置区域
-		new Setting(containerEl).setName("Tag matching rules").setHeading();
+		new Setting(containerEl).setName("标签匹配规则").setHeading();
 		this.displayTagRules(containerEl);
 	}
 
@@ -121,9 +121,9 @@ export class TagsSettingTab extends PluginSettingTab {
 	 */
 	displayTargetDirectory(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Target directory")
+			.setName("目标目录")
 			.setDesc(
-				'Specify the directory path for batch processing (relative to vault root). Leave empty to process only the currently open file. Example: "00-inbox" or "notes/tutorials"',
+				'指定批量处理的目录路径（相对于库根目录）。留空则仅处理当前打开的文件。示例："00-inbox" 或 "notes/tutorials"',
 			)
 			.addText((text) =>
 				text
@@ -159,8 +159,8 @@ export class TagsSettingTab extends PluginSettingTab {
 	displayYamlTemplates(containerEl: HTMLElement): void {
 		// 添加新模板按钮
 		new Setting(containerEl)
-			.setName("Add new template")
-			.setDesc("Create a new YAML frontmatter template")
+			.setName("添加新模板")
+			.setDesc("创建新的YAML frontmatter模板")
 			.addButton((button) =>
 				button.setButtonText("添加").onClick(async () => {
 					this.plugin.settings.yamlTemplates.push({
@@ -210,10 +210,8 @@ export class TagsSettingTab extends PluginSettingTab {
 
 			// 动态生成选项
 			new Setting(templateDiv)
-				.setName("Dynamic generation")
-				.setDesc(
-					"Automatically generate YAML based on note content (disable to manually edit template content)",
-				)
+				.setName("动态生成")
+				.setDesc("根据笔记内容自动生成YAML（禁用可手动编辑模板内容）")
 				.addToggle((toggle) =>
 					toggle
 						.setValue(template.isDynamic)
@@ -405,15 +403,93 @@ export class TagsSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * 显示配置导出对话框
+	 */
+	showExportConfigModal(): void {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("导出配置");
+
+		const contentDiv = modal.contentEl.createDiv({
+			attr: { style: "padding: 10px;" },
+		});
+
+		contentDiv.createEl("p", {
+			text: "以下是当前插件配置的JSON格式，您可以复制到其他地方使用：",
+		});
+
+		const textarea = contentDiv.createEl("textarea", {
+			attr: {
+				rows: "20",
+				style: "width: 100%; font-family: monospace; font-size: 12px;",
+				readonly: "true",
+			},
+		});
+
+		// 导出所有配置
+		const exportData = {
+			yamlTemplates: this.plugin.settings.yamlTemplates,
+			tagRules: this.plugin.settings.tagRules,
+			targetDirectory: this.plugin.settings.targetDirectory,
+		};
+
+		textarea.value = JSON.stringify(exportData, null, 2);
+
+		const buttonDiv = contentDiv.createDiv({
+			attr: {
+				style: "margin-top: 15px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;",
+			},
+		});
+
+		buttonDiv
+			.createEl("button", {
+				text: "关闭",
+			})
+			.addEventListener("click", () => {
+				modal.close();
+			});
+
+		buttonDiv
+			.createEl("button", {
+				text: "复制配置",
+				attr: {
+					class: "mod-cta",
+				},
+			})
+			.addEventListener("click", () => {
+				void (async () => {
+					try {
+						await navigator.clipboard.writeText(textarea.value);
+						new Notice("配置已复制到剪贴板");
+					} catch (error) {
+						// 降级方案
+						textarea.select();
+						document.execCommand("copy");
+						new Notice("配置已复制到剪贴板");
+					}
+				})();
+			});
+
+		modal.open();
+	}
+
+	/**
 	 * 显示标签匹配规则配置
 	 */
 	displayTagRules(containerEl: HTMLElement): void {
+		// 导出配置按钮
+		new Setting(containerEl)
+			.setName("导出配置")
+			.setDesc("导出当前所有配置为JSON格式，便于备份或分享")
+			.addButton((button) =>
+				button.setButtonText("导出").onClick(() => {
+					this.showExportConfigModal();
+				}),
+			);
+
 		// 批量导入按钮
 		new Setting(containerEl)
-			.setName("Batch import rules")
-			.setDesc(
-				"Quickly import multiple tag matching rules from JSON format",
-			)
+			.setName("批量导入规则")
+			.setDesc("从JSON格式快速导入多个标签匹配规则")
 			.addButton((button) =>
 				button.setButtonText("导入").onClick(() => {
 					this.showBatchImportModal();
@@ -422,8 +498,8 @@ export class TagsSettingTab extends PluginSettingTab {
 
 		// 添加新规则按钮
 		new Setting(containerEl)
-			.setName("Add new rule")
-			.setDesc("Create a new tag matching rule")
+			.setName("添加新规则")
+			.setDesc("创建新的标签匹配规则")
 			.addButton((button) =>
 				button.setButtonText("添加").onClick(async () => {
 					this.plugin.settings.tagRules.push({
@@ -455,7 +531,7 @@ export class TagsSettingTab extends PluginSettingTab {
 			});
 
 			headerDiv.createSpan({
-				text: `Rule ${index + 1}`,
+				text: `规则 ${index + 1}`,
 				attr: { style: "font-weight: 600; font-size: 0.95em;" },
 			});
 
@@ -503,7 +579,7 @@ export class TagsSettingTab extends PluginSettingTab {
 			// 关键词输入
 			const keywordGroup = fieldsDiv.createDiv();
 			keywordGroup.createEl("label", {
-				text: "Keyword (supports regex)",
+				text: "关键词 (支持正则表达式)",
 				attr: {
 					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
 				},
@@ -524,7 +600,7 @@ export class TagsSettingTab extends PluginSettingTab {
 			// 标签输入
 			const tagGroup = fieldsDiv.createDiv();
 			tagGroup.createEl("label", {
-				text: "Tag (without #)",
+				text: "标签 (不带#)",
 				attr: {
 					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
 				},
