@@ -1,90 +1,179 @@
-# Obsidian Sample Plugin
+# Obsidian Tags Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+这是一个功能强大的 Obsidian 插件，用于自动管理笔记的 YAML frontmatter 和标签系统。它能够根据内容智能匹配标签，并支持批量处理多个笔记文件。
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## 功能特性
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- **YAML Frontmatter 管理**: 自动生成和管理笔记的 YAML frontmatter
+- **智能标签匹配**: 基于关键词规则自动为笔记添加相关标签
+- **批量处理**: 支持对整个目录下的所有 Markdown 文件进行批量处理
+- **可配置模板**: 自定义 YAML frontmatter 模板
+- **灵活的标签规则**: 支持正则表达式和大小写敏感的标签匹配规则
+- **动态变量替换**: 支持 {{title}}, {{created}}, {{updated}} 等动态变量
 
-## First time developing plugins?
+## 安装
 
-Quick starting guide for new plugin devs:
+### 手动安装
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+1. 下载最新版本的 `main.js`, `manifest.json` 和 `styles.css`(如果有)
+2. 将文件复制到你的 Vault 中的 `<Vault>/.obsidian/plugins/obsidian-tags-plugin/` 目录
+3. 在 Obsidian 中重新加载应用
+4. 在 **设置 → 社区插件** 中启用此插件
 
-## Releasing new releases
+### 从源码构建
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+```bash
+# 克隆仓库
+git clone <repository-url>
+cd obsidian-tags
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+# 安装依赖
+npm install
 
-## Adding your plugin to the community plugin list
+# 开发模式(自动编译)
+npm run dev
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+# 生产构建
+npm run build
 ```
 
-If you have multiple URLs, you can also do:
+## 使用方法
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+### 基本使用
+
+1. 打开任意 Markdown 笔记
+2. 点击左侧边栏的 "添加YAML和标签" 按钮，或使用命令面板:
+    - `应用YAML frontmatter`: 仅添加/更新 YAML frontmatter
+    - `应用匹配的标签`: 仅添加匹配的标签
+    - `应用YAML和标签`: 同时添加 YAML frontmatter 和匹配的标签(推荐)
+
+### 批量处理
+
+1. 在插件设置中指定目标目录
+2. 使用 "应用YAML和标签" 命令或侧边栏按钮
+3. 插件将自动处理指定目录下的所有 Markdown 文件
+
+## 配置
+
+### YAML 模板设置
+
+在插件设置页面，你可以:
+
+- 创建和编辑 YAML frontmatter 模板
+- 启用/禁用动态生成模式
+- 定义模板中包含的字段
+
+默认模板包含以下字段:
+
+```yaml
+title: { { title } }
+created: { { created } }
+updated: { { updated } }
+categories: []
+author:
+description:
+source:
+link:
+aliases: []
+tags: []
 ```
 
-## API Documentation
+支持的动态变量:
 
-See https://docs.obsidian.md
+- `{{title}}`: 从文件名提取的标题
+- `{{created}}`: 当前日期 (YYYY-MM-DD)
+- `{{updated}}`: 当前日期 (YYYY-MM-DD)
+- `{{filepath}}`: 完整文件路径
+
+### 标签匹配规则
+
+在插件设置页面，你可以:
+
+- 添加/删除标签匹配规则
+- 定义关键词(支持正则表达式)和对应的标签
+- 启用/禁用特定规则
+- 设置是否区分大小写
+
+示例规则:
+
+- 关键词: `教程|tutorial` → 标签: `tutorial`
+- 关键词: `笔记|note` → 标签: `note`
+
+### 目标目录设置
+
+- 留空: 只处理当前打开的文件
+- 指定路径: 批量处理指定目录下的所有 Markdown 文件(如 "00-Inbox" 或 "Notes/Tutorials")
+
+## 开发指南
+
+### 项目结构
+
+```
+src/
+  main.ts           # 插件入口点和生命周期管理
+  settings.ts       # 设置界面和默认配置
+  tag-matcher.ts    # 标签匹配引擎
+  yaml-manager.ts   # YAML frontmatter 管理器
+```
+
+### 技术栈
+
+- TypeScript
+- Obsidian Plugin API
+- esbuild (打包工具)
+
+### 版本发布
+
+本项目使用 GitHub Actions 自动打版和发布。发布新版本步骤：
+
+1. **更新版本号**:
+
+    ```bash
+    # 小版本更新 (1.0.0 -> 1.0.1)
+    npm version patch
+
+    # 中版本更新 (1.0.0 -> 1.1.0)
+    npm version minor
+
+    # 大版本更新 (1.0.0 -> 2.0.0)
+    npm version major
+    ```
+
+2. **推送标签**:
+
+    ```bash
+    git push origin main --tags
+    ```
+
+3. **自动发布**:
+    - GitHub Actions 会自动检测到新的 tag
+    - 自动构建插件 (`main.js`)
+    - 自动创建 GitHub Release 并上传以下文件:
+        - `main.js`
+        - `manifest.json`
+        - `styles.css` (如果存在)
+
+4. **查看发布**:
+    - 访问仓库的 [Releases](../../releases) 页面查看最新发布
+
+> **注意**: 确保在推送前已更新 `manifest.json` 中的 `minAppVersion` 字段（如需要）。
+
+### 贡献代码
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 开启 Pull Request
+
+## 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+
+## 支持
+
+如果你遇到问题或有建议，请在 GitHub 仓库中提交 Issue。
+
+---
+
+**注意**: 此插件遵循 Obsidian 开发者政策和插件指南，不会收集任何用户数据或访问网络。
