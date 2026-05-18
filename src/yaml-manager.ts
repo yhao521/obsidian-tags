@@ -235,7 +235,7 @@ export function generateDynamicYaml(filePath: string): Record<string, unknown> {
 
 	// 从文件路径提取标题
 	const fileName = filePath.split("/").pop() || "Untitled";
-	const title = fileName.replace(/\.md$/, "");
+	const title = fileName.replace(/\.md$/, "").replace(/[[\]]/g, "");
 
 	return {
 		title: title,
@@ -274,7 +274,11 @@ export function insertYamlFrontmatter(
 		// 解析模板内容,获取用户自定义的静态字段
 		const templateVariables: Record<string, string> = {
 			title: filePath
-				? filePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled"
+				? filePath
+						.split("/")
+						.pop()
+						?.replace(/\.md$/, "")
+						.replace(/[[\]]/g, "") || "Untitled"
 				: "Untitled",
 			created: new Date().toISOString().split("T")[0] || "",
 			updated: new Date().toISOString().split("T")[0] || "",
@@ -303,7 +307,11 @@ export function insertYamlFrontmatter(
 		// 使用静态模板
 		const variables: Record<string, string> = {
 			title: filePath
-				? filePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled"
+				? filePath
+						.split("/")
+						.pop()
+						?.replace(/\.md$/, "")
+						.replace(/[[\]]/g, "") || "Untitled"
 				: "Untitled",
 			created: new Date().toISOString().split("T")[0] || "",
 			updated: new Date().toISOString().split("T")[0] || "",
