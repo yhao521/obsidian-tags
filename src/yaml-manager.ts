@@ -148,19 +148,56 @@ export function parseSimpleYaml(yamlString: string): Record<string, unknown> {
  */
 export function objectToYaml(obj: Record<string, unknown>): string {
 	const lines: string[] = [];
+	// 这些字段应该始终为字符串类型,即使看起来像数组
+	const stringFields = new Set([
+		"author",
+		"description",
+		"source",
+		"link",
+		"categories",
+		"aliases",
+	]);
 
 	for (const [key, value] of Object.entries(obj)) {
 		if (Array.isArray(value)) {
 			if (value.length === 0) {
 				lines.push(`${key}: []`);
 			} else {
-				lines.push(`${key}:`);
-				for (const item of value) {
-					lines.push(`  - ${item}`);
+				// 检查是否应该强制转换为字符串
+				if (stringFields.has(key)) {
+					// 对于应该是字符串的字段,如果值是数组,取第一个元素或转为字符串
+					const stringValue =
+						value.length > 0 ? String(value[0]) : "";
+					lines.push(`${key}: "${stringValue}"`);
+				} else {
+					lines.push(`${key}:`);
+					for (const item of value) {
+						lines.push(`  - ${item}`);
+					}
 				}
 			}
 		} else {
-			lines.push(`${key}: ${String(value)}`);
+			// 对于应该是字符串的字段,确保添加引号以避免YAML解析问题
+			if (stringFields.has(key)) {
+				const stringValue = String(value);
+				// 如果值包含特殊字符或看起来像YAML类型,添加引号
+				if (
+					stringValue.includes(":") ||
+					stringValue.includes("#") ||
+					stringValue.includes("[") ||
+					stringValue.includes("]") ||
+					stringValue.includes("{") ||
+					stringValue.includes("}") ||
+					stringValue.includes('"') ||
+					stringValue.includes("'")
+				) {
+					lines.push(`${key}: "${stringValue}"`);
+				} else {
+					lines.push(`${key}: ${stringValue}`);
+				}
+			} else {
+				lines.push(`${key}: ${String(value)}`);
+			}
 		}
 	}
 
