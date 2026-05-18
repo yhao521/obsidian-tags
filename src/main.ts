@@ -1,24 +1,16 @@
-import {
-	App,
-	Editor,
-	MarkdownView,
-	Notice,
-	Plugin,
-	TFile,
-	TFolder,
-} from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, TFolder } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
-	MyPluginSettings,
-	SampleSettingTab,
+	ObsidianTagsSettings,
+	TagsSettingTab,
 } from "./settings";
 import { insertYamlFrontmatter, addTagsToFrontmatter } from "./yaml-manager";
 import { matchTags, extractBodyContent } from "./tag-matcher";
 
 // Remember to rename these classes and interfaces!
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class ObsidianTagsPlugin extends Plugin {
+	settings: ObsidianTagsSettings;
 
 	async onload() {
 		await this.loadSettings();
@@ -56,7 +48,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// 添加设置页面
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new TagsSettingTab(this.app, this));
 	}
 
 	onunload() {
@@ -67,7 +59,7 @@ export default class MyPlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>,
+			(await this.loadData()) as Partial<ObsidianTagsSettings>,
 		);
 	}
 

@@ -6,9 +6,8 @@ import {
 	Modal,
 	TFolder,
 	SuggestModal,
-	TAbstractFile,
 } from "obsidian";
-import MyPlugin from "./main";
+import ObsidianTagsPlugin from "./main";
 
 /**
  * 文件夹选择模态框
@@ -60,13 +59,13 @@ export interface TagRule {
 	enabled: boolean;
 }
 
-export interface MyPluginSettings {
+export interface ObsidianTagsSettings {
 	yamlTemplates: YamlTemplate[];
 	tagRules: TagRule[];
 	targetDirectory: string; // 目标目录路径,为空则处理当前文件
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: ObsidianTagsSettings = {
 	yamlTemplates: [
 		{
 			name: "默认模板",
@@ -92,10 +91,10 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	targetDirectory: "", // 默认为空,处理当前文件
 };
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class TagsSettingTab extends PluginSettingTab {
+	plugin: ObsidianTagsPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: ObsidianTagsPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -105,15 +104,15 @@ export class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// 目标目录设置区域
-		new Setting(containerEl).setName("处理设置").setHeading();
+		new Setting(containerEl).setName("Processing").setHeading();
 		this.displayTargetDirectory(containerEl);
 
 		// YAML模板设置区域
-		new Setting(containerEl).setName("YAML模板设置").setHeading();
+		new Setting(containerEl).setName("YAML templates").setHeading();
 		this.displayYamlTemplates(containerEl);
 
 		// 标签规则设置区域
-		new Setting(containerEl).setName("标签匹配规则").setHeading();
+		new Setting(containerEl).setName("Tag matching rules").setHeading();
 		this.displayTagRules(containerEl);
 	}
 
@@ -122,9 +121,9 @@ export class SampleSettingTab extends PluginSettingTab {
 	 */
 	displayTargetDirectory(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("目标目录")
+			.setName("Target directory")
 			.setDesc(
-				'指定要批量处理的目录路径(相对于Vault根目录)。留空则只处理当前打开的文件。例如: "00-Inbox" 或 "Notes/Tutorials"',
+				'Specify the directory path for batch processing (relative to vault root). Leave empty to process only the currently open file. Example: "00-inbox" or "notes/tutorials"',
 			)
 			.addText((text) =>
 				text
@@ -142,9 +141,11 @@ export class SampleSettingTab extends PluginSettingTab {
 						this.plugin.settings.targetDirectory = selectedPath;
 						void this.plugin.saveSettings();
 						// 更新输入框显示
-						const inputEl = containerEl.querySelector("input");
+						const inputEl = containerEl.querySelector(
+							"input",
+						) as HTMLInputElement;
 						if (inputEl) {
-							(inputEl as HTMLInputElement).value = selectedPath;
+							inputEl.value = selectedPath;
 						}
 						new Notice(`已选择目录: ${selectedPath || "当前文件"}`);
 					}).open();
@@ -158,8 +159,8 @@ export class SampleSettingTab extends PluginSettingTab {
 	displayYamlTemplates(containerEl: HTMLElement): void {
 		// 添加新模板按钮
 		new Setting(containerEl)
-			.setName("添加新模板")
-			.setDesc("创建一个新的YAML frontmatter模板")
+			.setName("Add new template")
+			.setDesc("Create a new YAML frontmatter template")
 			.addButton((button) =>
 				button.setButtonText("添加").onClick(async () => {
 					this.plugin.settings.yamlTemplates.push({
@@ -209,8 +210,10 @@ export class SampleSettingTab extends PluginSettingTab {
 
 			// 动态生成选项
 			new Setting(templateDiv)
-				.setName("动态生成")
-				.setDesc("根据笔记内容自动生成YAML(关闭后可手动编辑模板内容)")
+				.setName("Dynamic generation")
+				.setDesc(
+					"Automatically generate YAML based on note content (disable to manually edit template content)",
+				)
 				.addToggle((toggle) =>
 					toggle
 						.setValue(template.isDynamic)
@@ -407,8 +410,10 @@ export class SampleSettingTab extends PluginSettingTab {
 	displayTagRules(containerEl: HTMLElement): void {
 		// 批量导入按钮
 		new Setting(containerEl)
-			.setName("批量导入规则")
-			.setDesc("从JSON格式快速导入多个标签匹配规则")
+			.setName("Batch import rules")
+			.setDesc(
+				"Quickly import multiple tag matching rules from JSON format",
+			)
 			.addButton((button) =>
 				button.setButtonText("导入").onClick(() => {
 					this.showBatchImportModal();
@@ -417,8 +422,8 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		// 添加新规则按钮
 		new Setting(containerEl)
-			.setName("添加新规则")
-			.setDesc("创建一个新的标签匹配规则")
+			.setName("Add new rule")
+			.setDesc("Create a new tag matching rule")
 			.addButton((button) =>
 				button.setButtonText("添加").onClick(async () => {
 					this.plugin.settings.tagRules.push({
@@ -449,8 +454,8 @@ export class SampleSettingTab extends PluginSettingTab {
 				},
 			});
 
-			const titleSpan = headerDiv.createSpan({
-				text: `规则 ${index + 1}`,
+			headerDiv.createSpan({
+				text: `Rule ${index + 1}`,
 				attr: { style: "font-weight: 600; font-size: 0.95em;" },
 			});
 
@@ -466,7 +471,7 @@ export class SampleSettingTab extends PluginSettingTab {
 					type: "checkbox",
 					style: "cursor: pointer;",
 				},
-			}) as HTMLInputElement;
+			});
 			toggle.checked = rule.enabled;
 			toggle.addEventListener("change", () => {
 				rule.enabled = toggle.checked;
@@ -497,8 +502,8 @@ export class SampleSettingTab extends PluginSettingTab {
 
 			// 关键词输入
 			const keywordGroup = fieldsDiv.createDiv();
-			const keywordLabel = keywordGroup.createEl("label", {
-				text: "关键词(支持正则)",
+			keywordGroup.createEl("label", {
+				text: "Keyword (supports regex)",
 				attr: {
 					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
 				},
@@ -518,23 +523,19 @@ export class SampleSettingTab extends PluginSettingTab {
 
 			// 标签输入
 			const tagGroup = fieldsDiv.createDiv();
-			const tagLabel = tagGroup.createEl("label", {
-				text: "标签(不含#)",
+			tagGroup.createEl("label", {
+				text: "Tag (without #)",
 				attr: {
 					style: "display: block; font-size: 0.85em; margin-bottom: 4px; color: var(--text-muted);",
 				},
 			});
-			const tagInput = tagGroup.createEl("input", {
+			tagGroup.createEl("input", {
 				attr: {
 					type: "text",
-					placeholder: "tutorial",
+					placeholder: "Tutorial",
 					value: rule.tag,
 					style: "width: 100%; padding: 4px 8px; font-size: 0.9em;",
 				},
-			});
-			tagInput.addEventListener("change", () => {
-				rule.tag = tagInput.value;
-				void this.plugin.saveSettings();
 			});
 
 			// 区分大小写选项(行内显示)
@@ -549,7 +550,7 @@ export class SampleSettingTab extends PluginSettingTab {
 					type: "checkbox",
 					style: "cursor: pointer;",
 				},
-			}) as HTMLInputElement;
+			});
 			caseToggle.checked = rule.caseSensitive;
 			caseToggle.addEventListener("change", () => {
 				rule.caseSensitive = caseToggle.checked;

@@ -200,10 +200,6 @@ export function generateDynamicYaml(filePath: string): Record<string, unknown> {
 	const fileName = filePath.split("/").pop() || "Untitled";
 	const title = fileName.replace(/\.md$/, "");
 
-	// 从路径提取分类(文件夹名)
-	const pathParts = filePath.split("/");
-	// const category = pathParts.length > 1 ? pathParts[pathParts.length - 2] : "";
-
 	return {
 		title: title,
 		created: dateStr,
